@@ -6,8 +6,7 @@ import com.applabs.geo_quest.repository.QuestionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,36 +28,79 @@ public class LocationService {
     }
 
     /**
-     * Returns questions unlocked for the user's current GPS position,
-     * filtered by the session's current difficulty level.
+     * Returns one response per location within GPS range, filtered by difficulty.
      *
-     * @param userLat    User's latitude
-     * @param userLng    User's longitude
-     * @param difficulty Current difficulty level (1, 2, or 3)
-     * @return List of unlocked question responses (correctAnswer excluded)
+     * For each location in range:
+     *  - If one of the two alternates is in this session's assignedQuestionIds
+     *    → return that question (normal unlocked response).
+     *  - If NEITHER alternate is assigned to this session (both taken by other
+     *    active sessions) → return a locked marker so the client can show the
+     *    "occupied" state and prompt the team to move on.
+     *
+     * @param userLat             User's latitude
+     * @param userLng             User's longitude
+     * @param difficulty          Current difficulty level (1, 2, or 3)
+     * @param assignedQuestionIds This session's assigned question IDs
+     * @param allActiveAssigned   All question IDs currently assigned to ANY
+     *                            active session (used to detect fully-taken slots)
      */
-    public List<UnlockedQuestionResponse> getUnlockedQuestions(double userLat, double userLng, int difficulty) {
+    public List<UnlockedQuestionResponse> getUnlockedQuestions(
+            double userLat, double userLng,
+            int difficulty,
+            List<String> assignedQuestionIds,
+            Set<String> allActiveAssigned) {
 
-        // Max unlock radius we'd ever use — used to compute bounding box
         double maxRadius = 500.0;
-
         double deltaLat = maxRadius / METERS_PER_DEGREE_LAT;
         double deltaLng = maxRadius / (METERS_PER_DEGREE_LAT * Math.cos(Math.toRadians(userLat)));
 
-        // Pre-filter in Postgres with bounding box, then apply exact Haversine distance + difficulty
         List<Question> candidates = questionRepository.findQuestionsInBoundingBox(
                 userLat - deltaLat, userLat + deltaLat,
                 userLng - deltaLng, userLng + deltaLng
         );
 
-        return candidates.stream()
+        // Group nearby questions by locationName, filtered by difficulty + exact radius
+        Map<String, List<Question>> byLocation = candidates.stream()
                 .filter(q -> q.getDifficulty() == difficulty)
-                .map(q -> {
-                    double dist = distanceBetween(userLat, userLng, q.getLatitude(), q.getLongitude());
-                    return dist <= q.getUnlockRadius() ? toResponse(q, dist) : null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .filter(q -> distanceBetween(userLat, userLng,
+                        q.getLatitude(), q.getLongitude()) <= q.getUnlockRadius())
+                .collect(Collectors.groupingBy(Question::getLocationName));
+
+        List<UnlockedQuestionResponse> results = new ArrayList<>();
+
+        for (Map.Entry<String, List<Question>> entry : byLocation.entrySet()) {
+            String locationName = entry.getKey();
+            List<Question> alternates = entry.getValue();
+            double dist = distanceBetween(userLat, userLng,
+                    alternates.get(0).getLatitude(), alternates.get(0).getLongitude());
+
+            // Find the alternate assigned to THIS session
+            Optional<Question> mine = alternates.stream()
+                    .filter(q -> assignedQuestionIds.contains(q.getQuestionId()))
+                    .findFirst();
+
+            if (mine.isPresent()) {
+                // Happy path — this team has a question here
+                results.add(toResponse(mine.get(), dist));
+            } else {
+                // Check if ALL alternates are taken by other active sessions
+                boolean allTaken = alternates.stream()
+                        .allMatch(q -> allActiveAssigned.contains(q.getQuestionId()));
+
+                if (allTaken) {
+                    // Every alternate is in use — show a locked marker
+                    results.add(UnlockedQuestionResponse.builder()
+                            .locationName(locationName)
+                            .distanceMeters(Math.round(dist * 10.0) / 10.0)
+                            .locked(true)
+                            .build());
+                }
+                // If not all taken but none assigned to this session, this location
+                // simply wasn't assigned to this team at session start — skip it.
+            }
+        }
+
+        return results;
     }
 
     /**
@@ -81,8 +123,10 @@ public class LocationService {
                 .difficulty(q.getDifficulty())
                 .points(q.getPoints())
                 .category(q.getCategory())
+                .locationName(q.getLocationName())
                 .options(q.getOptions())
                 .distanceMeters(Math.round(distanceMeters * 10.0) / 10.0)
+                .locked(false)
                 .build();
     }
 }

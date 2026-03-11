@@ -10,7 +10,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "questions")
+@Table(name = "questions",
+       indexes = {
+           @Index(name = "idx_question_coords", columnList = "latitude, longitude"),
+           @Index(name = "idx_question_difficulty", columnList = "difficulty")
+       })
 public class Question {
 
     @Id
@@ -28,6 +32,10 @@ public class Question {
     private double longitude;
     private double unlockRadius;
     private String category;
+
+    /** Human-readable campus location name shown to players on the map. */
+    private String locationName;
+
     private String correctAnswer;
 
     @ElementCollection

@@ -15,6 +15,7 @@ import com.applabs.geo_quest.repository.TeamRepository;
 import com.applabs.geo_quest.security.RateLimiter;
 import com.applabs.geo_quest.service.LocationService;
 import com.applabs.geo_quest.service.SessionTimerService;
+import com.applabs.geo_quest.enums.SessionStatus;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,8 +25,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/questions")
@@ -69,6 +73,7 @@ public class QuestionController {
                 .difficulty(q.getDifficulty())
                 .points(q.getPoints())
                 .category(q.getCategory())
+                .locationName(q.getLocationName())
                 .options(q.getOptions())
                 .build();
         return ResponseEntity.ok(response);
@@ -77,6 +82,8 @@ public class QuestionController {
     /**
      * POST /api/questions/unlock
      * Returns questions near the user's GPS location, filtered by session difficulty.
+     * Markers where both alternates are taken by other active sessions are returned
+     * as locked so the Flutter client can display an "occupied" state.
      * Rate-limited to 1 request per 5 seconds per user.
      */
     @PostMapping("/unlock")
@@ -106,11 +113,22 @@ public class QuestionController {
             throw new AccessDeniedException("You are not a member of this session's team");
         }
 
-        // Determine difficulty from current score
+        // Collect all question IDs currently assigned across ALL active sessions
+        // (excluding this session — we handle ours separately via assignedQuestionIds).
+        // Used by LocationService to detect fully-occupied location slots.
+        Set<String> allActiveAssigned = sessionRepository.findByStatus(SessionStatus.ACTIVE)
+                .stream()
+                .filter(s -> !s.getSessionId().equals(session.getSessionId()))
+                .flatMap(s -> s.getAssignedQuestionIds().stream())
+                .collect(Collectors.toCollection(HashSet::new));
+
         int difficulty = sessionTimerService.getDifficultyForScore(session.getScore());
 
         List<UnlockedQuestionResponse> unlocked = locationService.getUnlockedQuestions(
-                request.getUserLat(), request.getUserLng(), difficulty);
+                request.getUserLat(), request.getUserLng(),
+                difficulty,
+                session.getAssignedQuestionIds(),
+                allActiveAssigned);
 
         return ResponseEntity.ok(unlocked);
     }
