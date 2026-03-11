@@ -17,7 +17,6 @@
 	<name>geo_quest</name>
 	<description>A Spring Boot application for managing geo-based questions</description>
 
-	<!-- TODO <url>https://github.com/AppLabs-IIITK/geo_quest</url>  -->
 
 	<licenses>
 		<license>
@@ -118,6 +117,13 @@
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
+		</dependency>
+
+		<!-- Spring DotEnv -->
+		<dependency>
+			<groupId>me.paulschwarz</groupId>
+			<artifactId>spring-dotenv</artifactId>
+			<version>4.0.0</version>
 		</dependency>
 
 		<!-- Testing -->
