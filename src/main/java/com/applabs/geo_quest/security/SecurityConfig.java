@@ -82,7 +82,7 @@ public class SecurityConfig {
 
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
-                "https://*.your-domain.com" // ← replace with your actual domain
+                "https://geo-quest-be-test.onrender.com" // ← replace with your actual domain
         ));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
