@@ -1,29 +1,51 @@
 package com.applabs.geo_quest.config;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
+import java.util.Collections;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 @Configuration
+/**
+ * Configuration class for Google OAuth authentication in GeoQuest.
+ * <p>
+ * Provides a singleton {@link GoogleIdTokenVerifier} bean for verifying Google
+ * ID tokens.
+ * Ensures efficient certificate caching and correct audience validation,
+ * matching the client ID
+ * used by the Flutter app. This avoids unnecessary network activity and
+ * guarantees secure authentication.
+ * <p>
+ * Usage:
+ * <ul>
+ * <li>Inject {@link GoogleIdTokenVerifier} wherever Google token verification
+ * is needed.</li>
+ * <li>Set <code>app.google.client-id</code> in application properties to match
+ * the OAuth client ID used by Flutter.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ */
 public class GoogleAuthConfig {
 
     /**
-     * Singleton GoogleIdTokenVerifier bean.
+     * Creates a singleton {@link GoogleIdTokenVerifier} bean for verifying Google
+     * ID tokens.
+     * <p>
+     * Internally caches Google's public key certificates and only re-fetches them
+     * when the cache expires,
+     * ensuring efficient and secure authentication. The client ID must match the
+     * OAuth 2.0 client ID used
+     * by the Flutter app, as it is validated as the audience in the token.
      *
-     * Internally caches Google's public key certificates and only
-     * re-fetches them when the cache expires — so this is both
-     * correct and efficient. Creating a new verifier per request
-     * (as was done inline in AuthController) would cause unnecessary
-     * network activity on every login.
-     *
-     * The client ID must match exactly what Flutter sends as the
-     * audience in the Google ID token — use the same OAuth 2.0
-     * client ID from Google Cloud Console that your Flutter app uses.
+     * @param clientId the OAuth 2.0 client ID used by the Flutter app
+     * @return a singleton GoogleIdTokenVerifier configured for the specified client
+     *         ID
      */
     @Bean
     public GoogleIdTokenVerifier googleIdTokenVerifier(

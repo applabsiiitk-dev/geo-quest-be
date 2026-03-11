@@ -1,14 +1,41 @@
+/**
+ * Global exception handler for GeoQuest backend.
+ * <p>
+ * Handles common exceptions and formats error responses for API clients.
+ * <p>
+ * Handles:
+ * <ul>
+ *   <li>QuestionNotFoundException</li>
+ *   <li>SessionNotFoundException</li>
+ *   <li>TeamNotFoundException</li>
+ *   <li>AccessDeniedException</li>
+ *   <li>IllegalStateException</li>
+ *   <li>MethodArgumentNotValidException</li>
+ *   <li>Generic Exception</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers to return consistent error responses.</li>
+ *   <li>Formats errors with status, message, and timestamp.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
+
 package com.applabs.geo_quest.exception;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {

@@ -1,3 +1,26 @@
+/**
+ * Security configuration for GeoQuest backend.
+ * <p>
+ * Configures JWT authentication, CORS, CSRF, session management, and endpoint access rules.
+ * <p>
+ * Key features:
+ * <ul>
+ *   <li>Stateless session management</li>
+ *   <li>JWT authentication filter</li>
+ *   <li>CORS configuration for frontend domains</li>
+ *   <li>Endpoint access control (admin/user/public)</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Defines security filter chain for all API endpoints.</li>
+ *   <li>Registers JWT filter and CORS settings.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.security;
 
 import java.util.List;
@@ -30,18 +53,17 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/leaderboard").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/spawn-locations").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/questions").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/questions/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/leaderboard").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/spawn-locations").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/questions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/questions/**").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -59,8 +81,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOriginPatterns(List.of(
-            "http://localhost:*",
-            "https://*.your-domain.com"  // ← replace with your actual domain
+                "http://localhost:*",
+                "https://*.your-domain.com" // ← replace with your actual domain
         ));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -1,13 +1,35 @@
+/**
+ * Service for managing GeoQuest users.
+ * <p>
+ * Handles user registration, lookup, and persistence.
+ * <p>
+ * Methods:
+ * <ul>
+ *   <li><b>registerOrGet</b>: Registers a new user or returns existing.</li>
+ *   <li><b>findById</b>: Finds a user by UID.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers for user authentication and onboarding.</li>
+ *   <li>Persists user info for access control and display.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.service;
+
+import java.time.Instant;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.applabs.geo_quest.dto.request.UserRegistrationRequest;
 import com.applabs.geo_quest.model.User;
 import com.applabs.geo_quest.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.Optional;
 
 @Service
 public class UserService {

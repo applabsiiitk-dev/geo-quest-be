@@ -1,9 +1,32 @@
+/**
+ * Service for managing session timing and difficulty in GeoQuest.
+ * <p>
+ * Handles session expiration, duration, and difficulty mapping.
+ * <p>
+ * Methods:
+ * <ul>
+ *   <li><b>computeEndTime</b>: Computes session end time.</li>
+ *   <li><b>isSessionExpired</b>: Checks if session is expired.</li>
+ *   <li><b>getRemainingSeconds</b>: Gets remaining seconds in session.</li>
+ *   <li><b>getDifficultyForScore</b>: Maps score to difficulty tier.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers/services to enforce session rules and filter questions.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.service;
 
-import com.applabs.geo_quest.model.Session;
+import java.time.Instant;
+
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import com.applabs.geo_quest.model.Session;
 
 @Service
 public class SessionTimerService {
@@ -37,8 +60,10 @@ public class SessionTimerService {
      * Used by LocationService to filter questions.
      */
     public int getDifficultyForScore(int score) {
-        if (score < 100) return 1;
-        if (score < 250) return 2;
+        if (score < 100)
+            return 1;
+        if (score < 250)
+            return 2;
         return 3;
     }
 }

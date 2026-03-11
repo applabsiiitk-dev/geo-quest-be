@@ -1,3 +1,5 @@
+// PLAN: Riddle-based hints implementation
+// - Authentication logic may need to be aware of hint changes for question progress
 package com.applabs.geo_quest.controller;
 
 import java.util.Map;
@@ -15,6 +17,27 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 
 @RestController
 @RequestMapping("/api/auth")
+/**
+ * Controller for authentication endpoints in GeoQuest.
+ * <p>
+ * Handles Google OAuth login and JWT token generation. Restricts access to
+ * users with
+ * 
+ * @iiitkottayam.ac.in email domain. Delegates token verification to
+ *                     GoogleIdTokenVerifier
+ *                     and token creation to JwtUtil.
+ *                     <p>
+ *                     Endpoints:
+ *                     <ul>
+ *                     <li>POST /api/auth/google — Authenticate using Google
+ *                     OAuth and receive JWT</li>
+ *                     </ul>
+ *                     <p>
+ *                     Only users with valid Google tokens and allowed domain
+ *                     can access the app.
+ *
+ * @author fl4nk3r
+ */
 public class AuthController {
 
     private final JwtUtil jwtUtil;

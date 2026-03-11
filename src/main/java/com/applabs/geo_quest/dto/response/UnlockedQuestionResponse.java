@@ -1,21 +1,43 @@
 package com.applabs.geo_quest.dto.response;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 /**
- * Sent to the Flutter client when questions are unlocked near the user's GPS.
+ * Response sent to the client when questions are unlocked near the user's GPS
+ * in GeoQuest.
+ * <p>
+ * Contains question details, location info, and lock state.
+ * <p>
+ * Fields:
+ * <ul>
+ * <li><b>questionId</b>: Unique identifier for the question.</li>
+ * <li><b>title</b>: Question title or prompt.</li>
+ * <li><b>description</b>: Riddle/clue for the next location.</li>
+ * <li><b>difficulty</b>: Difficulty tier.</li>
+ * <li><b>points</b>: Points awarded for correct answer.</li>
+ * <li><b>category</b>: Question category.</li>
+ * <li><b>options</b>: List of answer options.</li>
+ * <li><b>distanceMeters</b>: Distance from user's location to marker.</li>
+ * <li><b>locationName</b>: Human-readable campus location name.</li>
+ * <li><b>locked</b>: True if all alternates at this location+tier are occupied
+ * by other sessions.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ * <li>Used by controllers to return unlocked questions to the client.</li>
+ * <li>Flutter client shows locked state if locked=true, omits correctAnswer for
+ * security.</li>
+ * </ul>
  *
- * If {@code locked} is true, all question fields except {@code locationName}
- * and {@code distanceMeters} will be null/zero — the marker is occupied by
- * two other active sessions. The client should show a "locked" state on the
- * map pin and prompt the team to move on and return later.
- *
- * NOTE: correctAnswer is intentionally excluded — never send it to the client.
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
  */
 @Data
 @Builder

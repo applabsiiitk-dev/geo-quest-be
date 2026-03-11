@@ -1,12 +1,33 @@
+/**
+ * Service for managing the GeoQuest leaderboard.
+ * <p>
+ * Handles score updates and retrieval of team rankings.
+ * <p>
+ * Methods:
+ * <ul>
+ *   <li><b>getLeaderboard</b>: Returns all leaderboard entries sorted by score.</li>
+ *   <li><b>updateScore</b>: Upserts the score for a team.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers/services to display and update team rankings.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.service;
-
-import com.applabs.geo_quest.model.Leaderboard;
-import com.applabs.geo_quest.repository.LeaderboardRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.applabs.geo_quest.model.Leaderboard;
+import com.applabs.geo_quest.repository.LeaderboardRepository;
 
 @Service
 public class LeaderboardService {

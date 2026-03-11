@@ -1,22 +1,53 @@
+// PLAN: Riddle-based hints implementation
+// - Team logic may need to be aware of hint changes for question progress
 package com.applabs.geo_quest.controller;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.applabs.geo_quest.dto.request.CreateTeamRequest;
 import com.applabs.geo_quest.exception.AccessDeniedException;
 import com.applabs.geo_quest.exception.TeamNotFoundException;
 import com.applabs.geo_quest.model.Team;
 import com.applabs.geo_quest.repository.TeamRepository;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/teams")
+/**
+ * Controller for team management endpoints in GeoQuest.
+ * <p>
+ * Handles creation, joining, listing, and member management for teams.
+ * Delegates persistence
+ * to TeamRepository. Enforces team size and membership rules.
+ * <p>
+ * Endpoints:
+ * <ul>
+ * <li>GET /api/teams — List all active teams</li>
+ * <li>GET /api/teams/{teamId} — Get team details</li>
+ * <li>POST /api/teams — Create a new team</li>
+ * <li>POST /api/teams/{teamId}/join — Join an existing team</li>
+ * <li>DELETE /api/teams/{teamId}/members/{memberId} — Remove or leave a team
+ * member</li>
+ * </ul>
+ * <p>
+ * Enforces access control for member removal and team joining.
+ *
+ * @author fl4nk3r
+ */
 public class TeamController {
 
     private final TeamRepository teamRepository;

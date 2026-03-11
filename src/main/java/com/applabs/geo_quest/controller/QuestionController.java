@@ -1,8 +1,29 @@
 package com.applabs.geo_quest.controller;
 
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.applabs.geo_quest.dto.request.CreateQuestionRequest;
 import com.applabs.geo_quest.dto.request.UnlockQuestionsRequest;
 import com.applabs.geo_quest.dto.response.UnlockedQuestionResponse;
+import com.applabs.geo_quest.enums.SessionStatus;
 import com.applabs.geo_quest.exception.AccessDeniedException;
 import com.applabs.geo_quest.exception.QuestionNotFoundException;
 import com.applabs.geo_quest.exception.SessionNotFoundException;
@@ -15,24 +36,36 @@ import com.applabs.geo_quest.repository.TeamRepository;
 import com.applabs.geo_quest.security.RateLimiter;
 import com.applabs.geo_quest.service.LocationService;
 import com.applabs.geo_quest.service.SessionTimerService;
-import com.applabs.geo_quest.enums.SessionStatus;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/questions")
+/**
+ * Controller for question management endpoints in GeoQuest.
+ * <p>
+ * Handles retrieval, unlocking, creation, and deletion of questions. Implements
+ * riddle-based
+ * hints by returning the description of the next question as a clue. Enforces
+ * access control
+ * and rate limiting for question unlocks. Delegates persistence and location
+ * logic to
+ * QuestionRepository, SessionRepository, TeamRepository, and LocationService.
+ * <p>
+ * Endpoints:
+ * <ul>
+ * <li>GET /api/questions/{questionId} — Retrieve a question (without correct
+ * answer)</li>
+ * <li>POST /api/questions/unlock — Unlock questions near user's location
+ * (rate-limited)</li>
+ * <li>POST /api/questions [ADMIN] — Create a new question</li>
+ * <li>DELETE /api/questions/{questionId} [ADMIN] — Delete a question</li>
+ * </ul>
+ * <p>
+ * Implements riddle-based hints for question progress.
+ *
+ * @author fl4nk3r
+ */
 public class QuestionController {
 
     private final QuestionRepository questionRepository;
@@ -44,11 +77,11 @@ public class QuestionController {
 
     @Autowired
     public QuestionController(QuestionRepository questionRepository,
-                               SessionRepository sessionRepository,
-                               TeamRepository teamRepository,
-                               LocationService locationService,
-                               SessionTimerService sessionTimerService,
-                               RateLimiter rateLimiter) {
+            SessionRepository sessionRepository,
+            TeamRepository teamRepository,
+            LocationService locationService,
+            SessionTimerService sessionTimerService,
+            RateLimiter rateLimiter) {
         this.questionRepository = questionRepository;
         this.sessionRepository = sessionRepository;
         this.teamRepository = teamRepository;
@@ -81,7 +114,8 @@ public class QuestionController {
 
     /**
      * POST /api/questions/unlock
-     * Returns questions near the user's GPS location, filtered by session difficulty.
+     * Returns questions near the user's GPS location, filtered by session
+     * difficulty.
      * Markers where both alternates are taken by other active sessions are returned
      * as locked so the Flutter client can display an "occupied" state.
      * Rate-limited to 1 request per 5 seconds per user.
@@ -134,7 +168,7 @@ public class QuestionController {
     }
 
     /**
-     * POST /api/questions  [ADMIN ONLY]
+     * POST /api/questions [ADMIN ONLY]
      * Creates a new question. correctAnswer is stored securely server-side.
      */
     @PostMapping
@@ -161,7 +195,7 @@ public class QuestionController {
     }
 
     /**
-     * DELETE /api/questions/{questionId}  [ADMIN ONLY]
+     * DELETE /api/questions/{questionId} [ADMIN ONLY]
      */
     @DeleteMapping("/{questionId}")
     @PreAuthorize("hasRole('ADMIN')")

@@ -1,3 +1,24 @@
+/**
+ * Utility class for JWT token generation and parsing in GeoQuest.
+ * <p>
+ * Handles creation and validation of JWT tokens for user authentication.
+ * <p>
+ * Methods:
+ * <ul>
+ *   <li><b>generate</b>: Generates a JWT token for a user.</li>
+ *   <li><b>parse</b>: Parses and validates a JWT token.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by JwtAuthenticationFilter for authentication.</li>
+ *   <li>Tokens include user ID and email, expire after 150 minutes.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.security;
 
 import java.util.Date;

@@ -1,18 +1,41 @@
+/**
+ * JWT authentication filter for GeoQuest backend.
+ * <p>
+ * Parses and validates JWT tokens from Authorization headers, sets authentication context.
+ * <p>
+ * Key features:
+ * <ul>
+ *   <li>Validates JWT tokens using JwtUtil</li>
+ *   <li>Sets user authentication in SecurityContext</li>
+ *   <li>Handles invalid/expired tokens with 401 response</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Added to security filter chain before UsernamePasswordAuthenticationFilter.</li>
+ *   <li>Used for stateless authentication of API requests.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.security;
 
-import io.jsonwebtoken.Claims;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.List;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -25,8 +48,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain chain) throws ServletException, IOException {
 
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
@@ -39,8 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String uid = claims.getSubject();
 
             var auth = new UsernamePasswordAuthenticationToken(
-                uid, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
-            );
+                    uid, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
         } catch (Exception e) {

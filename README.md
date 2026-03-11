@@ -1,4 +1,46 @@
+# How to Play GeoQuest
+
+1. **Register & Login:** Sign in with your Google account (@iiitkottayam.ac.in only), then register your profile.
+2. **Create or Join a Team:** Form a team (max 4 members) or join an existing one.
+3. **Start a Session:** Begin a 2-hour competition session for your team. Each session gets a unique, randomly shuffled set of questions (one per location/tier). No two teams get the same question at a location; assignment is independent and random.
+4. **Unlock Questions:** Use your GPS to unlock questions near campus markers. Markers may be locked if both alternates are taken.
+5. **Answer Questions:** Submit answers for unlocked questions. On correct answer, receive points and a riddle/clue for the next location. The riddle is always the description of the next question assigned to your session.
+6. **Score & Leaderboard:** Team scores are updated and shown on the public leaderboard.
+7. **Session End:** Session ends after 2 hours or when all questions are answered.
+
+## Game Logic Highlights
+
+- **Random Question Assignment:** At session start, questions are shuffled and assigned randomly per team. Each team gets a unique question at each location and tier.
+- **Riddle-Based Hints & Progression:** Each question's description is a riddle/clue for the next location. After a correct answer, the next question's description is sent as a hint, guiding the team to the next marker.
+- **Difficulty Tiers:** Easy (score 0–99): 10 pts; Medium (score 100–249): 20–25 pts; Hard (score 250+): 40–50 pts.
+- **GPS Proximity:** Questions are unlocked based on proximity to campus markers. Radius tiers: Indoor (15m), Gate (10m), Open (5m).
+- **Team & Session Management:** Teams must be active and not full to join. Only one active session per team.
+- **Rate Limiting & Cooldowns:** Unlock requests are rate-limited. Answer submissions may trigger cooldowns for locations.
+
+## Logical Flaws & Edge Cases
+
+- **Marker Locking:** If both alternates at a location are occupied, the marker is locked. Teams may be unable to progress if too many markers are locked.
+- **Session Expiry:** Sessions are auto-completed on expiry, but edge cases may occur if answers are submitted near expiry.
+- **GPS Spoofing:** The game relies on GPS proximity; spoofing may allow unfair unlocking.
+- **Team Size Enforcement:** Team size is enforced, but edge cases may occur if members leave mid-session.
+- **Rate Limiting:** Rate limiter is in-memory; may not scale horizontally (should use Redis for distributed deployments).
+- **Answer Attempts:** Multiple wrong attempts are tracked, but no explicit limit is enforced (could add attempt limits).
+- **Concurrent Sessions:** Only one active session per team, but concurrent session starts may cause race conditions.
+- **Question Assignment:** Unique shuffle per session, but if all questions at a location are taken, teams may be blocked.
+
+## Randomized Question Trail
+
+- Each session now receives a unique, randomly shuffled sequence of questions (question trail) when the game begins.
+- The trail is stored in the Session entity as `questionTrail` (List<String>) and progress is tracked with `currentTrailIndex`.
+- This replaces the previous "one question per location" constraint, allowing each team to follow a unique path.
+- The trail is generated using the `generateRandomTrail()` method in `SessionService`, which fetches all question IDs from the database and shuffles them.
+
+---
+
+**For best experience, play as a team, use campus locations, and follow the riddles to progress!**
+
 # GeoQuest Event Management Backend
+
 [![Java](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen)](https://spring.io/projects/spring-boot)
 [![Tests](https://img.shields.io/badge/Tests-0%20passed-success)]()
@@ -53,7 +95,6 @@ A robust Spring Boot backend for managing location-based quiz events, teams, ses
 
 ---
 
-
 ## Security & Google OAuth2 Flow
 
 ### SecurityFilterChain Configuration
@@ -104,7 +145,7 @@ A robust Spring Boot backend for managing location-based quiz events, teams, ses
 
 ---
 
-##  Environment Configuration
+## Environment Configuration
 
 The application requires a `.env` file in the root directory. Ensure the following variables are defined to match `application.properties`:
 
@@ -116,7 +157,6 @@ The application requires a `.env` file in the root directory. Ensure the followi
 | `DATABASE_USERNAME` | Database Username | Your Database Credentials |
 | `DATABASE_PASSWORD` | Database Password | Your Database Credentials |
 | `JWT_SECRET` | HS256 Signing Key | Random 32-char string |
-
 
 ## Upcoming Fixes
 
@@ -136,9 +176,11 @@ MIT/Apache-2.0 (see LICENSE)
 - Contact: <applabsiiitk@gmail.com>
 
 ## Authors
+
 - fl4nk3r
 
 ## Acknowledgements
+
 - Inspired by various open-source Spring Boot projects and best practices in REST API design and security.
 - Thanks to the IIIT Kottayam community for feedback and testing.
 - Google for their OAuth2 libraries and documentation.

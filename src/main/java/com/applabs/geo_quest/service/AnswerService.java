@@ -1,3 +1,24 @@
+/**
+ * Service for validating and scoring answers in GeoQuest.
+ * <p>
+ * Handles answer submission, scoring, cooldowns, and hint logic.
+ * <p>
+ * Methods:
+ * <ul>
+ *   <li><b>submitAnswer</b>: Validates and scores an answer submission.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers to process answer submissions and return results.</li>
+ *   <li>Enforces proximity, cooldown, and attempt rules.</li>
+ *   <li>Returns riddle/hint for next location on correct answer.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.service;
 
 import java.time.Instant;
@@ -23,46 +44,46 @@ import com.applabs.geo_quest.repository.TeamRepository;
 @Service
 public class AnswerService {
 
-    private static final long    MARKER_COOLDOWN_MINUTES = 10;
-    private static final int     MAX_WRONG_ATTEMPTS      = 2;
-    private static final double  GPS_TOLERANCE_METERS    = 15.0;
+    private static final long MARKER_COOLDOWN_MINUTES = 10;
+    private static final int MAX_WRONG_ATTEMPTS = 2;
+    private static final double GPS_TOLERANCE_METERS = 15.0;
 
     // After 1 wrong attempt the player earns only 3/5 of full points.
     // Numerator / denominator kept as constants so the rule is obvious.
-    private static final double  PENALTY_NUMERATOR   = 3.0;
-    private static final double  PENALTY_DENOMINATOR = 5.0;
+    private static final double PENALTY_NUMERATOR = 3.0;
+    private static final double PENALTY_DENOMINATOR = 5.0;
 
-    private final SessionRepository  sessionRepository;
+    private final SessionRepository sessionRepository;
     private final QuestionRepository questionRepository;
-    private final TeamRepository     teamRepository;
+    private final TeamRepository teamRepository;
     private final SessionTimerService sessionTimerService;
     private final LeaderboardService leaderboardService;
-    private final LocationService    locationService;
+    private final LocationService locationService;
 
     @Autowired
     public AnswerService(
-            SessionRepository  sessionRepository,
+            SessionRepository sessionRepository,
             QuestionRepository questionRepository,
-            TeamRepository     teamRepository,
+            TeamRepository teamRepository,
             SessionTimerService sessionTimerService,
-            LeaderboardService  leaderboardService,
-            LocationService     locationService) {
-        this.sessionRepository  = sessionRepository;
+            LeaderboardService leaderboardService,
+            LocationService locationService) {
+        this.sessionRepository = sessionRepository;
         this.questionRepository = questionRepository;
-        this.teamRepository     = teamRepository;
+        this.teamRepository = teamRepository;
         this.sessionTimerService = sessionTimerService;
         this.leaderboardService = leaderboardService;
-        this.locationService    = locationService;
+        this.locationService = locationService;
     }
 
     /**
      * Validates and scores an answer submission.
      *
      * Rules enforced:
-     *  1. Player must be physically within (unlockRadius + 15 m GPS tolerance)
-     *     of the question marker at submission time — closes the Hostel Exploit.
-     *  2. After 1 wrong attempt  → correct answer awards only 3/5 of full points.
-     *  3. After 2 wrong attempts → question is permanently locked for this session.
+     * 1. Player must be physically within (unlockRadius + 15 m GPS tolerance)
+     * of the question marker at submission time — closes the Hostel Exploit.
+     * 2. After 1 wrong attempt → correct answer awards only 3/5 of full points.
+     * 3. After 2 wrong attempts → question is permanently locked for this session.
      */
     @Transactional
     public AnswerResultResponse submitAnswer(AnswerSubmissionRequest request, String uid) {
@@ -92,29 +113,29 @@ public class AnswerService {
         }
 
         // ── 5. Per-marker cooldown check ─────────────────────────────────────
-        String spawnId          = request.getSpawnLocationId();
-        Long   cooldownUntilEpoch = session.getMarkerCooldowns().get(spawnId);
+        String spawnId = request.getSpawnLocationId();
+        Long cooldownUntilEpoch = session.getMarkerCooldowns().get(spawnId);
         if (cooldownUntilEpoch != null
                 && Instant.now().getEpochSecond() < cooldownUntilEpoch) {
             Instant cooldownUntil = Instant.ofEpochSecond(cooldownUntilEpoch);
             return new AnswerResultResponse(
-                false,
-                "Marker is on cooldown for your team",
-                0,
-                session.getScore(),
-                cooldownUntil.toString()
-            );
+                    false,
+                    "Marker is on cooldown for your team",
+                    0,
+                    session.getScore(),
+                    cooldownUntil.toString(),
+                    null);
         }
 
         // ── 6. Already answered correctly? ───────────────────────────────────
         if (session.getAnsweredQuestionIds().contains(request.getQuestionId())) {
             return new AnswerResultResponse(
-                false,
-                "Already answered correctly",
-                0,
-                session.getScore(),
-                null
-            );
+                    false,
+                    "Already answered correctly",
+                    0,
+                    session.getScore(),
+                    null,
+                    null);
         }
 
         // ── 7. Load question ─────────────────────────────────────────────────
@@ -130,37 +151,37 @@ public class AnswerService {
 
         if (distanceMeters > submissionRadius) {
             return new AnswerResultResponse(
-                false,
-                "You must be at the marker to answer. "
-                    + "You are " + Math.round(distanceMeters) + " m away "
-                    + "(must be within " + Math.round(submissionRadius) + " m).",
-                0,
-                session.getScore(),
-                null
-            );
+                    false,
+                    "You must be at the marker to answer. "
+                            + "You are " + Math.round(distanceMeters) + " m away "
+                            + "(must be within " + Math.round(submissionRadius) + " m).",
+                    0,
+                    session.getScore(),
+                    null,
+                    null);
         }
 
         // ── 9. Wrong-attempt gate ─────────────────────────────────────────────
-        String questionId   = request.getQuestionId();
-        int    wrongSoFar   = session.getQuestionAttempts().getOrDefault(questionId, 0);
+        String questionId = request.getQuestionId();
+        int wrongSoFar = session.getQuestionAttempts().getOrDefault(questionId, 0);
 
         if (wrongSoFar >= MAX_WRONG_ATTEMPTS) {
             return new AnswerResultResponse(
-                false,
-                "Question locked — " + MAX_WRONG_ATTEMPTS
-                    + " wrong attempts already used for this question.",
-                0,
-                session.getScore(),
-                null
-            );
+                    false,
+                    "Question locked — " + MAX_WRONG_ATTEMPTS
+                            + " wrong attempts already used for this question.",
+                    0,
+                    session.getScore(),
+                    null,
+                    null);
         }
 
         // ── 10. Evaluate the answer ───────────────────────────────────────────
         boolean correct = question.getCorrectAnswer() != null
                 && question.getCorrectAnswer().trim()
-                           .equalsIgnoreCase(request.getAnswer().trim());
+                        .equalsIgnoreCase(request.getAnswer().trim());
 
-        int    pointsAwarded  = 0;
+        int pointsAwarded = 0;
         String cooldownUntilStr = null;
 
         if (correct) {
@@ -192,6 +213,18 @@ public class AnswerService {
             leaderboardService.updateScore(
                     session.getTeamId(), team.getTeamName(), session.getScore());
 
+            // Find the next question assigned to this session that hasn't been answered yet
+            String nextHint = null;
+            for (String qid : session.getAssignedQuestionIds()) {
+                if (!session.getAnsweredQuestionIds().contains(qid) && !qid.equals(questionId)) {
+                    Question nextQ = questionRepository.findById(qid).orElse(null);
+                    if (nextQ != null) {
+                        nextHint = nextQ.getDescription();
+                        break;
+                    }
+                }
+            }
+
             String penaltyNote = wrongSoFar > 0
                     ? " (penalty applied: " + pointsAwarded + "/" + fullPoints + " pts)"
                     : "";
@@ -201,8 +234,8 @@ public class AnswerService {
                     "Correct! +" + pointsAwarded + " points" + penaltyNote,
                     pointsAwarded,
                     session.getScore(),
-                    cooldownUntilStr
-            );
+                    cooldownUntilStr,
+                    nextHint);
 
         } else {
             // ── 14. Wrong answer — increment attempt counter ──────────────────
@@ -214,7 +247,7 @@ public class AnswerService {
 
             String message = attemptsLeft > 0
                     ? "Wrong answer. " + attemptsLeft + " attempt(s) remaining. "
-                        + "Note: next correct answer will award 3/5 points."
+                            + "Note: next correct answer will award 3/5 points."
                     : "Wrong answer. Question is now locked — no more attempts allowed.";
 
             return new AnswerResultResponse(
@@ -222,8 +255,8 @@ public class AnswerService {
                     message,
                     0,
                     session.getScore(),
-                    null
-            );
+                    null,
+                    null);
         }
     }
 }

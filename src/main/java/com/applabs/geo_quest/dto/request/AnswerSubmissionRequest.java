@@ -1,3 +1,26 @@
+/**
+ * Request DTO for submitting an answer in GeoQuest.
+ * <p>
+ * Fields:
+ * <ul>
+ *   <li><b>sessionId</b>: Session identifier.</li>
+ *   <li><b>questionId</b>: Question identifier.</li>
+ *   <li><b>answer</b>: Submitted answer string.</li>
+ *   <li><b>spawnLocationId</b>: Spawn location identifier.</li>
+ *   <li><b>userLat</b>: User's latitude.</li>
+ *   <li><b>userLng</b>: User's longitude.</li>
+ * </ul>
+ * <p>
+ * Usage:
+ * <ul>
+ *   <li>Used by controllers to process answer submissions.</li>
+ *   <li>Validated for required fields and value ranges.</li>
+ * </ul>
+ *
+ * @author fl4nk3r
+ * @since 2026-03-11
+ * @version 3.0
+ */
 package com.applabs.geo_quest.dto.request;
 
 import jakarta.validation.constraints.DecimalMax;
