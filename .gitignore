@@ -45,4 +45,4 @@ docs/
 .env
 
 ### Seed files ###
-src/main/config/QuestionDataSeeder.java
+src/main/java/com/applabs/geo_quest/config/QuestionDataSeeder.java
