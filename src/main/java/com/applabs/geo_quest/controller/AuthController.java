@@ -44,8 +44,9 @@ public class AuthController {
     private final GoogleIdTokenVerifier verifier; // inject the verifier bean
     private final String googleClientId;
     private static final String ALLOWED_DOMAIN = "iiitkottayam.ac.in";
-
+    private static final boolean ENFORCE_DOMAIN_RESTRICTION = false; // TEMP: Set to false for testing
     // ← ADD verifier parameter to constructor
+
     public AuthController(JwtUtil jwtUtil,
             GoogleIdTokenVerifier verifier,
             @Value("${app.google.client-id}") String googleClientId) {
@@ -56,13 +57,23 @@ public class AuthController {
 
     @PostMapping("/google")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) throws Exception {
+        System.out.println("Received authentication request");
         String idToken = body.get("idToken");
         if (idToken == null || idToken.isBlank()) {
+            System.err.println("No idToken provided in request body");
             return ResponseEntity.badRequest().body(Map.of("error", "idToken is required"));
         }
 
-        GoogleIdToken googleToken = verifier.verify(idToken); // uses the injected singleton
+        GoogleIdToken googleToken;
+        try {
+            googleToken = verifier.verify(idToken);
+        } catch (Exception e) {
+            System.err.println("Token verification failed: " + e.getMessage());
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
+        }
+
         if (googleToken == null) {
+            System.err.println("Token verification returned null");
             return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
         }
 
@@ -70,12 +81,18 @@ public class AuthController {
         String email = payload.getEmail();
         String uid = payload.getSubject();
 
-        if (email == null || !email.endsWith("@" + ALLOWED_DOMAIN)) {
+        System.out.println("Token verified successfully for user: " + email);
+
+        if (ENFORCE_DOMAIN_RESTRICTION && (email == null || !email.endsWith("@" + ALLOWED_DOMAIN))) {
+            System.err.println("Domain restriction enforced - rejecting email: " + email);
             return ResponseEntity.status(403).body(Map.of(
                     "error", "Access restricted to @" + ALLOWED_DOMAIN + " accounts"));
+        } else if (!ENFORCE_DOMAIN_RESTRICTION) {
+            System.out.println("Domain restriction disabled - allowing all emails for testing");
         }
 
         String jwt = jwtUtil.generate(uid, email);
+        System.out.println("JWT generated successfully for user: " + email);
         return ResponseEntity.ok(Map.of("token", jwt, "uid", uid, "email", email));
     }
 }
