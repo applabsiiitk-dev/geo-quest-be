@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.applabs.geo_quest.dto.request.StartSessionRequest;
+import com.applabs.geo_quest.dto.response.CurrentQuestionResponse;
 import com.applabs.geo_quest.dto.response.RemainingTimeResponse;
 import com.applabs.geo_quest.enums.SessionStatus;
 import com.applabs.geo_quest.exception.AccessDeniedException;
@@ -24,9 +25,11 @@ import com.applabs.geo_quest.exception.SessionNotFoundException;
 import com.applabs.geo_quest.exception.TeamNotFoundException;
 import com.applabs.geo_quest.model.Session;
 import com.applabs.geo_quest.model.Team;
+import com.applabs.geo_quest.model.Question;
 import com.applabs.geo_quest.repository.QuestionRepository;
 import com.applabs.geo_quest.repository.SessionRepository;
 import com.applabs.geo_quest.repository.TeamRepository;
+import com.applabs.geo_quest.service.LocationService;
 import com.applabs.geo_quest.service.SessionTimerService;
 
 import jakarta.validation.Valid;
@@ -62,16 +65,19 @@ public class SessionController {
     private final TeamRepository teamRepository;
     private final SessionTimerService sessionTimerService;
     private final QuestionRepository questionRepository;
+    private final LocationService locationService;
 
     @Autowired
     public SessionController(SessionRepository sessionRepository,
             TeamRepository teamRepository,
             SessionTimerService sessionTimerService,
-            QuestionRepository questionRepository) {
+            QuestionRepository questionRepository,
+            LocationService locationService) {
         this.sessionRepository = sessionRepository;
         this.teamRepository = teamRepository;
         this.sessionTimerService = sessionTimerService;
         this.questionRepository = questionRepository;
+        this.locationService = locationService;
     }
 
     /**
@@ -157,6 +163,138 @@ public class SessionController {
         }
 
         return ResponseEntity.ok(session);
+    }
+
+    /**
+     * GET /api/sessions/{sessionId}/current-question
+     * Returns the current (next unanswered) question for the session.
+     * Includes coordinates for proximity tracking.
+     * 
+     * Query params:
+     * - userLat: User's current latitude
+     * - userLng: User's current longitude
+     */
+    @GetMapping("/{sessionId}/current-question")
+    public ResponseEntity<CurrentQuestionResponse> getCurrentQuestion(
+            @PathVariable String sessionId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Double userLat,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Double userLng,
+            @AuthenticationPrincipal String uid) {
+
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFoundException(sessionId));
+
+        Team team = teamRepository.findById(session.getTeamId())
+                .orElseThrow(() -> new TeamNotFoundException(session.getTeamId()));
+
+        if (!team.getMembers().contains(uid)) {
+            throw new AccessDeniedException("You are not a member of this session's team");
+        }
+
+        // Check if session is still active
+        if (!SessionStatus.ACTIVE.equals(session.getStatus())) {
+            throw new IllegalStateException("Session is not active");
+        }
+
+        if (sessionTimerService.isSessionExpired(session)) {
+            session.setStatus(SessionStatus.COMPLETED);
+            sessionRepository.save(session);
+            throw new IllegalStateException("Session has expired");
+        }
+
+        // Find the first unanswered question in the assigned list
+        for (String questionId : session.getAssignedQuestionIds()) {
+            if (!session.getAnsweredQuestionIds().contains(questionId)) {
+                Question q = questionRepository.findById(questionId).orElse(null);
+                if (q != null) {
+                    // Check if user is within range
+                    boolean withinRange = false;
+                    if (userLat != null && userLng != null) {
+                        double distance = locationService.distanceBetween(
+                                userLat, userLng, q.getLatitude(), q.getLongitude());
+                        withinRange = distance <= q.getUnlockRadius() + 15.0; // 15m GPS tolerance
+                    }
+
+                    CurrentQuestionResponse response = CurrentQuestionResponse.builder()
+                            .questionId(q.getQuestionId())
+                            .title(q.getTitle())
+                            .description(q.getDescription())
+                            .difficulty(q.getDifficulty())
+                            .points(q.getPoints())
+                            .category(q.getCategory())
+                            .options(q.getOptions())
+                            .locationName(q.getLocationName())
+                            .latitude(q.getLatitude())
+                            .longitude(q.getLongitude())
+                            .unlockRadius(q.getUnlockRadius())
+                            .questionsAnswered(session.getAnsweredQuestionIds().size())
+                            .totalQuestions(session.getAssignedQuestionIds().size())
+                            .withinRange(withinRange)
+                            .build();
+                    return ResponseEntity.ok(response);
+                }
+            }
+        }
+
+        // All questions answered
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * GET /api/sessions/team/{teamId}/active
+     * Returns the active session for a team, or 404 if none exists.
+     */
+    @GetMapping("/team/{teamId}/active")
+    public ResponseEntity<Session> getActiveSession(
+            @PathVariable String teamId,
+            @AuthenticationPrincipal String uid) {
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(teamId));
+
+        if (!team.getMembers().contains(uid)) {
+            throw new AccessDeniedException("You are not a member of this team");
+        }
+
+        return sessionRepository.findByTeamIdAndStatus(teamId, SessionStatus.ACTIVE)
+                .map(session -> {
+                    // Auto-complete expired sessions
+                    if (sessionTimerService.isSessionExpired(session)) {
+                        session.setStatus(SessionStatus.COMPLETED);
+                        sessionRepository.save(session);
+                        return ResponseEntity.notFound().<Session>build();
+                    }
+                    return ResponseEntity.ok(session);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * POST /api/sessions/{sessionId}/end
+     * Manually ends an active session.
+     */
+    @PostMapping("/{sessionId}/end")
+    public ResponseEntity<Session> endSession(
+            @PathVariable String sessionId,
+            @AuthenticationPrincipal String uid) {
+
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFoundException(sessionId));
+
+        Team team = teamRepository.findById(session.getTeamId())
+                .orElseThrow(() -> new TeamNotFoundException(session.getTeamId()));
+
+        if (!team.getMembers().contains(uid)) {
+            throw new AccessDeniedException("You are not a member of this session's team");
+        }
+
+        if (!SessionStatus.ACTIVE.equals(session.getStatus())) {
+            throw new IllegalStateException("Session is not active");
+        }
+
+        session.setStatus(SessionStatus.COMPLETED);
+        session.setEndTime(java.time.Instant.now());
+        return ResponseEntity.ok(sessionRepository.save(session));
     }
 
     /**

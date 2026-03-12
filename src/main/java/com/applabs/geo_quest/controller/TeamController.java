@@ -22,6 +22,7 @@ import com.applabs.geo_quest.exception.AccessDeniedException;
 import com.applabs.geo_quest.exception.TeamNotFoundException;
 import com.applabs.geo_quest.model.Team;
 import com.applabs.geo_quest.repository.TeamRepository;
+import com.applabs.geo_quest.service.LeaderboardService;
 
 import jakarta.validation.Valid;
 
@@ -51,10 +52,12 @@ import jakarta.validation.Valid;
 public class TeamController {
 
     private final TeamRepository teamRepository;
+    private final LeaderboardService leaderboardService;
 
     @Autowired
-    public TeamController(TeamRepository teamRepository) {
+    public TeamController(TeamRepository teamRepository, LeaderboardService leaderboardService) {
         this.teamRepository = teamRepository;
+        this.leaderboardService = leaderboardService;
     }
 
     /** GET /api/teams — list all active teams */
@@ -71,11 +74,28 @@ public class TeamController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /** POST /api/teams — create a new team */
+    /** GET /api/teams/me — get current user's active team */
+    @GetMapping("/me")
+    public ResponseEntity<Team> getMyTeam(@AuthenticationPrincipal String uid) {
+        List<Team> teams = teamRepository.findActiveTeamsByMemberUid(uid);
+        if (teams.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(teams.get(0));
+    }
+
+    /** POST /api/teams — create a new team (or return existing team if user already has one) */
     @PostMapping
     public ResponseEntity<Team> createTeam(
             @Valid @RequestBody CreateTeamRequest request,
             @AuthenticationPrincipal String uid) {
+
+        // Check if user already has an active team
+        List<Team> existingTeams = teamRepository.findActiveTeamsByMemberUid(uid);
+        if (!existingTeams.isEmpty()) {
+            // Return existing team instead of creating duplicate
+            return ResponseEntity.ok(existingTeams.get(0));
+        }
 
         List<String> members = new ArrayList<>();
         members.add(uid); // creator is the first member
@@ -88,7 +108,12 @@ public class TeamController {
                 .isActive(true)
                 .build();
 
-        return ResponseEntity.ok(teamRepository.save(team));
+        Team savedTeam = teamRepository.save(team);
+
+        // Add team to leaderboard with score 0
+        leaderboardService.updateScore(savedTeam.getTeamId(), savedTeam.getTeamName(), 0);
+
+        return ResponseEntity.ok(savedTeam);
     }
 
     /** POST /api/teams/{teamId}/join — join an existing team */
