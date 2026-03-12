@@ -17,46 +17,76 @@ import jakarta.annotation.PostConstruct;
 /**
  * Configuration class for Firebase Admin SDK.
  * <p>
- * Initializes Firebase Admin SDK for verifying Firebase ID tokens
- * from the frontend React Native app.
- * <p>
- * Firebase manages user sessions - the backend only verifies tokens.
+ * Builds the service account JSON from individual environment variables
+ * and initializes Firebase Admin SDK for verifying Firebase ID tokens.
  *
  * @author fl4nk3r
  */
 @Configuration
 public class FirebaseConfig {
 
-    // TODO: Set FIREBASE_CREDENTIALS environment variable with your Firebase service account JSON
-    // Get this from: Firebase Console → Project Settings → Service accounts → Generate new private key
-    @Value("${FIREBASE_CREDENTIALS:}")
-    private String firebaseCredentials;
+    /** Firebase project ID — pre-filled as geo-quest-applabs */
+    @Value("${firebase.project.id}")
+    private String projectId;
+
+    /** Service account client email — from Firebase Console service account JSON */
+    @Value("${firebase.client.email}")
+    private String clientEmail;
+
+    /** Private key ID — from Firebase Console service account JSON */
+    @Value("${firebase.private.key.id}")
+    private String privateKeyId;
+
+    /** RSA private key — from Firebase Console service account JSON (keep newlines as \\n) */
+    @Value("${firebase.private.key}")
+    private String privateKey;
+
+    /** Service account client ID — from Firebase Console service account JSON */
+    @Value("${firebase.client.id}")
+    private String clientId;
+
+    /** Client x509 cert URL — from Firebase Console service account JSON */
+    @Value("${firebase.client.cert.url}")
+    private String clientCertUrl;
 
     @PostConstruct
     public void initialize() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                FirebaseOptions options;
-                
-                if (firebaseCredentials != null && !firebaseCredentials.isBlank()) {
-                    // Use credentials from environment variable
-                    InputStream serviceAccount = new ByteArrayInputStream(
-                        firebaseCredentials.getBytes(StandardCharsets.UTF_8)
-                    );
-                    options = FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                        .build();
-                    System.out.println("Firebase initialized with service account credentials");
-                } else {
-                    // Use Application Default Credentials for local development
-                    options = FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.getApplicationDefault())
-                        .build();
-                    System.out.println("Firebase initialized with Application Default Credentials");
-                }
-                
+                // Build service account JSON from individual environment variables
+                String serviceAccountJson = String.format(
+                    "{" +
+                    "\"type\": \"service_account\"," +
+                    "\"project_id\": \"%s\"," +
+                    "\"private_key_id\": \"%s\"," +
+                    "\"private_key\": \"%s\"," +
+                    "\"client_email\": \"%s\"," +
+                    "\"client_id\": \"%s\"," +
+                    "\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\"," +
+                    "\"token_uri\": \"https://oauth2.googleapis.com/token\"," +
+                    "\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\"," +
+                    "\"client_x509_cert_url\": \"%s\"," +
+                    "\"universe_domain\": \"googleapis.com\"" +
+                    "}",
+                    projectId,
+                    privateKeyId,
+                    // Restore actual newlines in the PEM key (env vars store \n as literal \n)
+                    privateKey.replace("\\n", "\n"),
+                    clientEmail,
+                    clientId,
+                    clientCertUrl
+                );
+
+                InputStream serviceAccountStream = new ByteArrayInputStream(
+                    serviceAccountJson.getBytes(StandardCharsets.UTF_8)
+                );
+
+                FirebaseOptions options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccountStream))
+                    .build();
+
                 FirebaseApp.initializeApp(options);
-                System.out.println("Firebase Admin SDK initialized successfully");
+                System.out.println("Firebase Admin SDK initialized for project: " + projectId);
             }
         } catch (IOException e) {
             System.err.println("Failed to initialize Firebase: " + e.getMessage());
