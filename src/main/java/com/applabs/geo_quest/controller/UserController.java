@@ -31,7 +31,7 @@ import jakarta.validation.Valid;
  * <li>GET /api/users/me — Get current user's profile</li>
  * </ul>
  * <p>
- * Registration is triggered after Firebase sign-in from the client.
+ * Registration is triggered after Expo AuthSession OAuth authentication from the client.
  *
  * @author fl4nk3r
  */
@@ -46,7 +46,7 @@ public class UserController {
 
     /**
      * POST /api/users/register
-     * Called right after Firebase sign-in from Flutter.
+     * Called right after Expo AuthSession OAuth authentication.
      * Creates the user profile if it doesn't exist, returns it if it does.
      */
     @PostMapping("/register")

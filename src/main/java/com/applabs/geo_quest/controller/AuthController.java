@@ -57,31 +57,69 @@ public class AuthController {
 
     @PostMapping("/google")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) throws Exception {
-        System.out.println("Received authentication request");
+        System.out.println("Received authentication request from Expo OAuth client");
         String idToken = body.get("idToken");
         if (idToken == null || idToken.isBlank()) {
             System.err.println("No idToken provided in request body");
             return ResponseEntity.badRequest().body(Map.of("error", "idToken is required"));
         }
 
+        // Log token info for debugging (first and last 10 chars only for security)
+        String tokenPreview = idToken.length() > 20 ? 
+            idToken.substring(0, 10) + "..." + idToken.substring(idToken.length() - 10) : 
+            idToken;
+        System.out.println("Processing Expo AuthSession token: " + tokenPreview);
+
         GoogleIdToken googleToken;
         try {
             googleToken = verifier.verify(idToken);
         } catch (Exception e) {
             System.err.println("Token verification failed: " + e.getMessage());
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
+            System.err.println("Token preview: " + tokenPreview);
+            return ResponseEntity.status(401).body(Map.of(
+                "error", "Invalid Google token",
+                "details", "Token verification failed: " + e.getMessage()
+            ));
         }
 
         if (googleToken == null) {
             System.err.println("Token verification returned null");
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
+            System.err.println("Token preview: " + tokenPreview);
+            return ResponseEntity.status(401).body(Map.of(
+                "error", "Invalid Google token",
+                "details", "Token verification returned null"
+            ));
         }
 
         GoogleIdToken.Payload payload = googleToken.getPayload();
         String email = payload.getEmail();
         String uid = payload.getSubject();
-
+        
+        // Additional token validation
+        Boolean emailVerified = payload.getEmailVerified();
+        Long tokenExp = payload.getExpirationTimeSeconds();
+        Long currentTime = System.currentTimeMillis() / 1000;
+        
         System.out.println("Token verified successfully for user: " + email);
+        System.out.println("Email verified: " + emailVerified + ", Token expires: " + tokenExp + ", Current time: " + currentTime);
+        
+        // Check if token is expired (additional validation)
+        if (tokenExp != null && currentTime > tokenExp) {
+            System.err.println("Token has expired. Exp: " + tokenExp + ", Current: " + currentTime);
+            return ResponseEntity.status(401).body(Map.of(
+                "error", "Invalid Google token",
+                "details", "Token has expired"
+            ));
+        }
+
+        // Validate email is verified
+        if (emailVerified != null && !emailVerified) {
+            System.err.println("Email not verified for user: " + email);
+            return ResponseEntity.status(401).body(Map.of(
+                "error", "Invalid Google token",
+                "details", "Email not verified"
+            ));
+        }
 
         if (ENFORCE_DOMAIN_RESTRICTION && (email == null || !email.endsWith("@" + ALLOWED_DOMAIN))) {
             System.err.println("Domain restriction enforced - rejecting email: " + email);
@@ -91,8 +129,21 @@ public class AuthController {
             System.out.println("Domain restriction disabled - allowing all emails for testing");
         }
 
-        String jwt = jwtUtil.generate(uid, email);
-        System.out.println("JWT generated successfully for user: " + email);
-        return ResponseEntity.ok(Map.of("token", jwt, "uid", uid, "email", email));
+        try {
+            String jwt = jwtUtil.generate(uid, email);
+            System.out.println("JWT generated successfully for user: " + email);
+            return ResponseEntity.ok(Map.of(
+                "token", jwt, 
+                "uid", uid, 
+                "email", email,
+                "message", "Authentication successful"
+            ));
+        } catch (Exception jwtError) {
+            System.err.println("JWT generation failed: " + jwtError.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Authentication processing failed",
+                "details", "JWT generation error"
+            ));
+        }
     }
 }
